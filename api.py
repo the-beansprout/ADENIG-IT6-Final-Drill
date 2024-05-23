@@ -50,7 +50,29 @@ def get_loans_by_book(id):
         jsonify({"book_id": id, "count": len(data), "loans": data}), 200
     )
 
-
+@app.route("/book", methods=["POST"])
+def add_member():
+    cur = mysql.connection.cursor()
+    info = request.get_json()
+    BookID = info["BookID"]
+    Title = info ["Title"]
+    Author = info["Author"]
+    Publisher = info ["Publisher"]
+    Year = info ["Year"]
+    cur.execute(
+        """ INSERT INTO book (BookID, Title, Author, Publisher, Year) VALUE (%s, %s, %s, %s, %s)""",
+        (BookID, Title, Author, Publisher, Year ),
+    )
+    mysql.connection.commit()
+    print("row(s) affected :{}".format(cur.rowcount))
+    rows_affected = cur.rowcount
+    cur.close()
+    return make_response(
+        jsonify(
+            {"message": "book added successfully", "rows_affected": rows_affected}
+        ),
+        201,
+    )
 
 if __name__ == "__main__":
     app.run(debug=True)
