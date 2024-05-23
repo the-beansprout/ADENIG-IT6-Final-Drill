@@ -74,5 +74,28 @@ def add_member():
         201,
     )
 
+@app.route("/book/<int:id>", methods=["PUT"])
+def update_book(id):
+    cur = mysql.connection.cursor()
+    info = request.get_json()
+    BookID = info ["BookID"]
+    Title = info ["Title"]
+    Author = info ["Author"]
+    Publisher = info ["Publisher"]
+    Year  = info ["Year"]
+    cur.execute(
+        """ UPDATE book SET BookID = %s, Title = %s, Author = %s, Publisher = %s, Year = %s WHERE BookID = %s """,
+        (BookID, Title, Author, Publisher, Year, id),
+    )
+    mysql.connection.commit()
+    rows_affected = cur.rowcount
+    cur.close()
+    return make_response(
+        jsonify(
+            {"message": "book updated successfully", "rows_affected": rows_affected}
+        ),
+        200,
+    )
+
 if __name__ == "__main__":
     app.run(debug=True)
