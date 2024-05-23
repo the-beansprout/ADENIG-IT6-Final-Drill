@@ -30,15 +30,19 @@ def get_department():
     data = data_fetch("""select * from book""")
     return make_response(jsonify(data), 200)
 
+@app.route("/book/<int:id>", methods=["GET"])
+def get_book_by_id(id):
+    data = data_fetch("""SELECT * FROM book where BookID = {}""".format(id))
+    return make_response(jsonify(data), 200)
 
 @app.route("/book/<int:id>/loan", methods=["GET"])
 def get_loans_by_book(id):
     data = data_fetch(
         """
-        SELECT Member.FirstName, Member.LastName, Loan.LoanDate, Loan.ReturnDate 
-        FROM Loan
-        INNER JOIN Member
-        ON Loan.MemberID = Member.MemberID
+        SELECT book.BookID,book.Title,book.Author,book.Publisher,book.Year 
+        FROM book
+        INNER JOIN loan
+        ON book.BookID = loan.LoanID
         WHERE Loan.BookID = {}
         """.format(id)
     )
