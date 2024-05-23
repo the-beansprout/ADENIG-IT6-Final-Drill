@@ -39,16 +39,17 @@ def get_book_by_id(id):
 def get_loans_by_book(id):
     data = data_fetch(
         """
-        SELECT book.BookID,book.Title,book.Author,book.Publisher,book.Year 
+        SELECT book.BookID, book.Title, book.Author, book.Publisher, book.Year, loan.MemberID
         FROM book
         INNER JOIN loan
-        ON book.BookID = loan.LoanID
-        WHERE Loan.BookID = {}
+        ON book.BookID = loan.BookID
+        WHERE book.BookID = {}
         """.format(id)
     )
     return make_response(
         jsonify({"book_id": id, "count": len(data), "loans": data}), 200
     )
+
 
 
 if __name__ == "__main__":
