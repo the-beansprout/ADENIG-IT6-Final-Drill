@@ -15,14 +15,14 @@ app.config["JWT_SECRET_KEY"] = 'password224'  # Change this to a strong secret k
 mysql = MySQL(app)
 jwt = JWTManager(app)
 
-# Helper function to convert data to the desired format
+# Security measure
 def output_format(data, format='json'):
     if format == 'xml':
         xml_data = dicttoxml.dicttoxml(data, custom_root='result', attr_type=False)
         # Convert XML to string and prettify
         xml_pretty = ET.tostring(ET.fromstring(xml_data), encoding='utf8', method='xml')
         return Response(xml_pretty, mimetype='application/xml')
-    else:  # Default to JSON
+    else:  
         return jsonify(data)
 
 @app.route('/login', methods=['POST'])
@@ -30,7 +30,7 @@ def login():
     username = request.json.get('username', None)
     password = request.json.get('password', None)
     # TODO: Validate username and password against your user database
-    if username == 'admin' and password == 'password224':  # Replace with real user validation
+    if username == 'admin' and password == 'password224':  
         access_token = create_access_token(identity=username)
         return jsonify(access_token=access_token), 200
     else:
@@ -46,6 +46,7 @@ def data_fetch(query, params=None):
     cur.close()
     return data
 
+# Display list of books
 @app.route("/book", methods=["GET"])
 def get_book():
     data = data_fetch("""SELECT * FROM book""")
@@ -68,6 +69,7 @@ def get_loans_by_book(id):
     )
     return make_response(jsonify({"BookID": id, "count": len(data), "loans": data}), 200)
 
+# Add book
 @app.route("/book", methods=["POST"])
 def add_book():
     cur = mysql.connection.cursor()
@@ -86,6 +88,7 @@ def add_book():
     cur.close()
     return make_response(jsonify({"message": "book added successfully", "rows_affected": rows_affected}), 201)
 
+# Update Book
 @app.route("/book/<int:id>", methods=["PUT"])
 def update_book(id):
     cur = mysql.connection.cursor()
@@ -104,6 +107,7 @@ def update_book(id):
     cur.close()
     return make_response(jsonify({"message": "book updated successfully", "rows_affected": rows_affected}), 200)
 
+# Delete a Book
 @app.route("/book/<int:id>", methods=["DELETE"])
 def delete_book(id):
     cur = mysql.connection.cursor()
@@ -113,6 +117,7 @@ def delete_book(id):
     cur.close()
     return make_response(jsonify({"message": "book deleted successfully", "rows_affected": rows_affected}), 200)
 
+# Connected to security measure
 @app.route('/protected', methods=['GET'])
 @jwt_required()
 def protected():
