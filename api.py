@@ -26,7 +26,7 @@ def data_fetch(query):
 
 
 @app.route("/book", methods=["GET"])
-def get_department():
+def get_book():
     data = data_fetch("""select * from book""")
     return make_response(jsonify(data), 200)
 
@@ -51,7 +51,7 @@ def get_loans_by_book(id):
     )
 
 @app.route("/book", methods=["POST"])
-def add_member():
+def add_book():
     cur = mysql.connection.cursor()
     info = request.get_json()
     BookID = info["BookID"]
@@ -96,6 +96,26 @@ def update_book(id):
         ),
         200,
     )
+
+@app.route("/book/<int:id>", methods=["DELETE"])
+def delete_book(id):
+    cur = mysql.connection.cursor()
+    cur.execute(""" DELETE FROM book where BookID = %s """, (id,))
+    mysql.connection.commit()
+    rows_affected = cur.rowcount
+    cur.close()
+    return make_response(
+        jsonify(
+            {"message": "book deleted successfully", "rows_affected": rows_affected}
+        ),
+        200,
+    )
+
+@app.route("/book/format", methods=["GET"])
+def get_params():
+    fmt = request.args.get('id')
+    foo = request.args.get('aaaa')
+    return make_response(jsonify({"format":fmt, "foo":foo}),200)
 
 if __name__ == "__main__":
     app.run(debug=True)
