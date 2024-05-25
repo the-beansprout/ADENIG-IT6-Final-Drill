@@ -1,40 +1,47 @@
 from flask import Flask, make_response, jsonify, request
 from flask_mysqldb import MySQL
-from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity
-import dicttoxml
-import xml.etree.ElementTree as ET
+import jwt
+import datetime
+from functools import wraps
 
 app = Flask(__name__)
 app.config["MYSQL_HOST"] = "localhost"
 app.config["MYSQL_USER"] = "root"
-app.config["MYSQL_PASSWORD"] = "root"
+app.config["MYSQL_PASSWORD"] = "root" 
 app.config["MYSQL_DB"] = "final_drill"
 app.config["MYSQL_CURSORCLASS"] = "DictCursor"
-app.config["JWT_SECRET_KEY"] = 'password224'  # Change this to a strong secret key
+app.config["SECRET_KEY"] = 'admin224' 
 
 mysql = MySQL(app)
-jwt = JWTManager(app)
 
-# Security measure
-def output_format(data, format='json'):
-    if format == 'xml':
-        xml_data = dicttoxml.dicttoxml(data, custom_root='result', attr_type=False)
-        # Convert XML to string and prettify
-        xml_pretty = ET.tostring(ET.fromstring(xml_data), encoding='utf8', method='xml')
-        return Response(xml_pretty, mimetype='application/xml')
-    else:  
-        return jsonify(data)
+# Security
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = request.headers.get('Authorization')
+        if not token:
+            return jsonify({"message": "Token is missing!"}), 403
+        try:
+            token = token.split(" ")[1]  
+            print(f"Decoded token: {token}")
+            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
+            print(f"Decoded data: {data}")
+        except Exception as e:
+            print(f"Token decode error: {str(e)}")
+            return jsonify({"message": "Token is invalid!"}), 403
+        return f(*args, **kwargs)
+    return decorated
 
-@app.route('/login', methods=['POST'])
+@app.route("/login", methods=["POST"])
 def login():
-    username = request.json.get('username', None)
-    password = request.json.get('password', None)
-    # TODO: Validate username and password against your user database
-    if username == 'admin' and password == 'password224':  
-        access_token = create_access_token(identity=username)
-        return jsonify(access_token=access_token), 200
-    else:
-        return jsonify({"msg": "Bad username or password"}), 401
+    auth = request.authorization
+    if auth and auth.username == "admin" and auth.password == "breina_adenig":  
+        token = jwt.encode({'user': auth.username, 'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30)}, app.config['SECRET_KEY'], algorithm="HS256")
+        print(f"Generated token: {token}")
+        return jsonify({'token': token})
+    return make_response("Could not verify!", 401, {'WWW-Authenticate': 'Basic realm="Login Required"'})
+
+
 
 def data_fetch(query, params=None):
     cur = mysql.connection.cursor()
@@ -46,18 +53,21 @@ def data_fetch(query, params=None):
     cur.close()
     return data
 
-# Display list of books
+# READ
 @app.route("/book", methods=["GET"])
+@token_required
 def get_book():
     data = data_fetch("""SELECT * FROM book""")
     return make_response(jsonify(data), 200)
 
 @app.route("/book/<int:id>", methods=["GET"])
+@token_required
 def get_book_by_id(id):
     data = data_fetch("""SELECT * FROM book WHERE BookID = %s""", (id,))
     return make_response(jsonify(data), 200)
 
 @app.route("/book/<int:id>/loan", methods=["GET"])
+@token_required
 def get_loans_by_book(id):
     data = data_fetch(
         """
@@ -69,8 +79,9 @@ def get_loans_by_book(id):
     )
     return make_response(jsonify({"BookID": id, "count": len(data), "loans": data}), 200)
 
-# Add book
+# ADD
 @app.route("/book", methods=["POST"])
+@token_required
 def add_book():
     cur = mysql.connection.cursor()
     info = request.get_json()
@@ -88,8 +99,9 @@ def add_book():
     cur.close()
     return make_response(jsonify({"message": "book added successfully", "rows_affected": rows_affected}), 201)
 
-# Update Book
+# UPDATE
 @app.route("/book/<int:id>", methods=["PUT"])
+@token_required
 def update_book(id):
     cur = mysql.connection.cursor()
     info = request.get_json()
@@ -107,8 +119,9 @@ def update_book(id):
     cur.close()
     return make_response(jsonify({"message": "book updated successfully", "rows_affected": rows_affected}), 200)
 
-# Delete a Book
+# DELETE
 @app.route("/book/<int:id>", methods=["DELETE"])
+@token_required
 def delete_book(id):
     cur = mysql.connection.cursor()
     cur.execute("""DELETE FROM book WHERE BookID = %s""", (id,))
@@ -116,13 +129,6 @@ def delete_book(id):
     rows_affected = cur.rowcount
     cur.close()
     return make_response(jsonify({"message": "book deleted successfully", "rows_affected": rows_affected}), 200)
-
-# Connected to security measure
-@app.route('/protected', methods=['GET'])
-@jwt_required()
-def protected():
-    current_user = get_jwt_identity()
-    return jsonify(logged_in_as=current_user), 200
 
 if __name__ == "__main__":
     app.run(debug=True)
